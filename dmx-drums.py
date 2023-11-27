@@ -6,15 +6,24 @@ import mido
 
 TOTAL_EASING_TIME = 500 # milliseconds
 MIDI_USB_NAME = 'Simmons e-Drum:Simmons e-Drum MIDI 1 24:0'
+NOTE_COLOR_MAP = {
+    36: [255, 0, 0], # kick drum
+    66: [255, 0, 0], # alt kick drum
+    41: [255, 0, 50], # floor tom
+    71: [255, 30, 50], # mid tom
+    67: [255, 70, 50], # high tom
+    38: [255, 255, 255], # snare
+    49: [0, 100, 255], # closed hi hat
+    55: [0, 255, 100], # open hi hat
+    61: [0, 255, 0], # ride cymbal
+    73: [0, 255, 255], # crash cymbal
+    65: [0, 255, 100], # wood block
 
-# from here https://easings.net/#easeOutElastic
+}
+
 def ease(x: float):
-    c4 = (2 * math.pi) / 3
-    
-    if x == 0 or x == 1:
-        return x
-
-    return math.pow(2, -10 * x) * math.sin((x * 10 - 0.75) * c4) + 1;
+    # cubic ease out
+    return 1. - x * x * x
 
 class Lights:
     def __init__(self, channel=1):
@@ -36,9 +45,9 @@ class Lights:
             duration = 1000 * (time() - self.last_pulse_time) # milliseconds
             x = min(duration / TOTAL_EASING_TIME, 1.)
 
-            # amp = ease(min(duration / TOTAL_EASING_TIME, 1.))
+            amp = ease(x)
 
-            amp = 1. - x            
+            # amp = 1. - x            
             self.sender.set_data(
                 [0,] * (self.channel - 1) + 
                 [int(amp * 255), ] + 
@@ -69,13 +78,16 @@ def listen_midi():
     lights = Lights()
     with mido.open_input(MIDI_USB_NAME) as inport:
         for msg in inport:
-            if msg.type == "note_on":
-                lights.set_color([255,255,255])
-                print(msg.velocity)
-                #time.sleep(.02)
+            if msg.type == "note_on" and msg.velocity > 0:
+                # TODO: consider using velocity to control easing time or initial intensity
+                color = NOTE_COLOR_MAP.get(msg.note, [255, 255, 255])
+                lights.set_color(color)
+                print(msg.velocity, msg.note, color)
+        time.sleep(.00001)
 
 if __name__ == "__main__":
-    listen_midi()
+    demo()
+    #listen_midi()
     sleep(.1)
 
     
